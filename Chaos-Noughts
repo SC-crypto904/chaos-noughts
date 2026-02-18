@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Noughts & Crosses</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --cell-size: 100px;
+            --primary-color: #0f3460;
+            --accent-x: #e94560;
+            --accent-o: #00d2ff;
+            --text-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #status {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .board-container {
+            position: relative;
+            transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, var(--cell-size));
+            grid-template-rows: repeat(3, var(--cell-size));
+            gap: 15px;
+            background-color: var(--primary-color);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #16213e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .cell:hover { background-color: #1f2e4d; }
+        .cell.x { color: var(--accent-x); text-shadow: 0 0 10px var(--accent-x); }
+        .cell.o { color: var(--accent-o); text-shadow: 0 0 10px var(--accent-o); }
+        
+        .last-move { border: 2px solid white; }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background: var(--accent-x);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .chaos-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            color: #f8b400;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status">X's Turn</div>
+
+    <div class="board-container" id="boardContainer">
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="resetBtn">Reset</button>
+        <div class="chaos-toggle">
+            <input type="checkbox" id="chaosMode"> 
+            <label for="chaosMode">⚠️ CHAOS MODE</label>
+        </div>
+    </div>
+
+    <script>
+        const boardContainer = document.getElementById('boardContainer');
+        const cells = document.querySelectorAll('.cell');
+        const statusText = document.getElementById('status');
+        const resetBtn = document.getElementById('resetBtn');
+        const chaosCheckbox = document.getElementById('chaosMode');
+
+        let currentPlayer = "X";
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let gameActive = true;
+        let currentRotation = 0;
+
+        const winPatterns = [
+            [0,1,2], [3,4,5], [6,7,8], [0,3,6], 
+            [1,4,7], [2,5,8], [0,4,8], [2,4,6]
+        ];
+
+        function handleCellClick(e) {
+            const idx = e.target.getAttribute('data-index');
+            if (gameState[idx] !== "" || !gameActive) return;
+
+            // Mark move
+            gameState[idx] = currentPlayer;
+            updateDisplay();
+            
+            // Chaos Trigger
+            if (chaosCheckbox.checked && Math.random() < 0.25) {
+                triggerChaos();
+            }
+
+            checkWinner();
+        }
+
+        function triggerChaos() {
+            // Rotate the data array
+            const oldState = [...gameState];
+            // Mapping for 90deg clockwise rotation:
+            // 0->2, 1->5, 2->8, 3->1, 4->4, 5->7, 6->0, 7->3, 8->6
+            const rotMap = [6, 3, 0, 7, 4, 1, 8, 5, 2];
+            gameState = rotMap.map(i => oldState[i]);
+            
+            // Rotate the visual board
+            currentRotation += 90;
+            boardContainer.style.transform = `rotate(${currentRotation}deg)`;
+            
+            // Keep the text upright inside the cells
+            cells.forEach(cell => {
+                cell.style.transform = `rotate(-${currentRotation}deg)`;
+            });
+
+            setTimeout(() => {
+                statusText.innerText = "🌀 BOARD ROTATED! 🌀";
+                setTimeout(() => updateStatus(), 1000);
+            }, 100);
+        }
+
+        function updateDisplay() {
+            cells.forEach((cell, i) => {
+                cell.innerText = gameState[i];
+                cell.className = 'cell ' + (gameState[i] ? gameState[i].toLowerCase() : '');
+            });
+        }
+
+        function checkWinner() {
+            let win = false;
+            for (let p of winPatterns) {
+                if (gameState[p[0]] && gameState[p[0]] === gameState[p[1]] && gameState[p[0]] === gameState[p[2]]) {
+                    win = true;
+                    break;
+                }
+            }
+
+            if (win) {
+                statusText.innerText = `${currentPlayer} WINS!`;
+                gameActive = false;
+            } else if (!gameState.includes("")) {
+                statusText.innerText = "DRAW!";
+                gameActive = false;
+            } else {
+                currentPlayer = currentPlayer === "X" ? "O" : "X";
+                updateStatus();
+            }
+            updateDisplay();
+        }
+
+        function updateStatus() {
+            if (gameActive) statusText.innerText = `${currentPlayer}'s Turn`;
+        }
+
+        function reset() {
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            currentPlayer = "X";
+            gameActive = true;
+            currentRotation = 0;
+            boardContainer.style.transform = `rotate(0deg)`;
+            cells.forEach(c => c.style.transform = `rotate(0deg)`);
+            updateDisplay();
+            updateStatus();
+        }
+
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        resetBtn.addEventListener('click', reset);
+    </script>
+</body>
+</html>
